@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CardioAI 语音健康顾问</title>
+    <style>
+        :root {
+            --bg: #f4f6fb;
+            --card: #ffffff;
+            --ink: #1b2431;
+            --muted: #6b7789;
+            --line: #e3e8f0;
+            --brand: #2f6df6;
+            --brand-dark: #1f52c4;
+            --ask: #eef3ff;
+            --warn-bg: #fff7e6;
+            --warn-line: #f3d08a;
+            --warn-ink: #8a5a00;
+            --error-bg: #fdecec;
+            --error-line: #f2b8b8;
+            --error-ink: #a32222;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 28px 16px 48px;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        .shell { max-width: 880px; margin: 0 auto; }
+
+        header { margin-bottom: 18px; }
+
+        h1 {
+            margin: 0 0 6px;
+            font-size: 24px;
+            letter-spacing: 0.5px;
+        }
+
+        .subtitle { margin: 0; color: var(--muted); font-size: 14px; }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            background: #e9f7ef;
+            color: #1c7a4a;
+            border: 1px solid #bfe6cf;
+        }
+
+        .status.warn { background: var(--warn-bg); color: var(--warn-ink); border-color: var(--warn-line); }
+        .status.bad { background: var(--error-bg); color: var(--error-ink); border-color: var(--error-line); }
+        .status.hidden { display: none; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 2px rgba(20, 40, 80, 0.04);
+        }
+
+        label.field-label {
+            display: block;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 96px;
+            padding: 12px 14px;
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--ink);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            resize: vertical;
+            outline: none;
+        }
+
+        textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(47, 109, 246, 0.12); }
+
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+
+        .chip {
+            border: 1px dashed #c9d6ea;
+            background: #f7faff;
+            color: #35507d;
+            border-radius: 999px;
+            padding: 5px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .chip:hover { background: #edf3ff; border-color: var(--brand); }
+
+        .actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+
+        button.submit {
+            border: 0;
+            border-radius: 10px;
+            padding: 11px 26px;
+            font-size: 15px;
+            font-family: inherit;
+            color: #fff;
+            background: var(--brand);
+            cursor: pointer;
+        }
+
+        button.submit:hover:not(:disabled) { background: var(--brand-dark); }
+        button.submit:disabled { background: #a9bde8; cursor: not-allowed; }
+
+        .hint { font-size: 13px; color: var(--muted); }
+
+        .conversation { display: flex; flex-direction: column; gap: 12px; }
+
+        .bubble {
+            max-width: 88%;
+            padding: 11px 14px;
+            border-radius: 12px;
+            font-size: 15px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .bubble.ask {
+            align-self: flex-end;
+            background: var(--ask);
+            border: 1px solid #d5e1fb;
+        }
+
+        .bubble.answer {
+            align-self: flex-start;
+            background: #fbfcfe;
+            border: 1px solid var(--line);
+        }
+
+        .bubble .role { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+
+        .audio-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        audio {
+            flex: 1;
+            height: 40px;
+            min-width: 0;
+        }
+
+        .replay {
+            margin-top: 10px;
+            border: 1px solid #c9d6ea;
+            background: #f7faff;
+            color: #35507d;
+            border-radius: 8px;
+            padding: 4px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .replay:hover { background: #edf3ff; border-color: var(--brand); }
+
+        .meta {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .notice {
+            margin-top: 10px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .notice.warn { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-ink); }
+        .notice.error { background: var(--error-bg); border: 1px solid var(--error-line); color: var(--error-ink); }
+
+        .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 8px 0; }
+
+        footer { margin-top: 18px; color: var(--muted); font-size: 12px; text-align: center; }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ffffff66;
+            border-top-color: #fff;
+            border-radius: 50%;
+            display: none;
+            animation: spin 0.7s linear infinite;
+        }
+
+        .loading .spinner { display: inline-block; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 兼容不支持 autoplay 的浏览器：隐藏原生提示条 */
+        audio::-webkit-media-controls-panel { background-color: #f8fafd; }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <header>
+        <h1>CardioAI 语音健康顾问</h1>
+        <p class="subtitle">DeepSeek 生成回答，CosyVoice 同步合成语音，点击播放即可收听。</p>
+        <div id="status" class="status hidden"></div>
+    </header>
+
+    <section class="card">
+        <label class="field-label" for="question">描述你的心血管相关问题</label>
+        <textarea id="question" placeholder="例如：我今年 55 岁，血压 145/92，平时应该注意什么？" maxlength="500"></textarea>
+        <div class="chips">
+            <button class="chip" type="button">血压偏高日常要注意什么</button>
+            <button class="chip" type="button">血脂高还能吃鸡蛋吗</button>
+            <button class="chip" type="button">每周运动多少次对心脏好</button>
+        </div>
+        <div class="actions">
+            <button id="submit" class="submit" type="button">
+                <span class="spinner"></span>
+                <span id="submit-label">生成回答并朗读</span>
+            </button>
+            <span class="hint">语音为同步合成，通常需要 3 到 8 秒。</span>
+        </div>
+    </section>
+
+    <section class="card">
+        <label class="field-label">语音播放</label>
+        <div class="audio-card">
+            <audio id="player" controls autoplay preload="auto"></audio>
+        </div>
+        <div id="player-hint" class="meta">回答生成后会自动播报语音。</div>
+    </section>
+
+    <section class="card">
+        <div id="conversation" class="conversation">
+            <div class="empty">还没有对话，先问一个问题吧。</div>
+        </div>
+    </section>
+
+    <footer>本系统为教学演示用途，输出内容不构成医疗诊断或治疗建议，请遵医嘱。</footer>
+</div>
+
+<script>
+(function () {
+    const llmReady = {{ 'true' if llm_ready else 'false' }};
+    const ttsReady = {{ 'true' if tts_ready else 'false' }};
+
+    const statusBox = document.getElementById('status');
+    const questionBox = document.getElementById('question');
+    const submitBtn = document.getElementById('submit');
+    const submitLabel = document.getElementById('submit-label');
+    const conversation = document.getElementById('conversation');
+    const player = document.getElementById('player');
+    const playerHint = document.getElementById('player-hint');
+    const chips = document.querySelectorAll('.chip');
+
+    function renderStatus() {
+        if (!llmReady) {
+            statusBox.className = 'status bad';
+            statusBox.textContent = '未读取到 DEEPSEEK_API_KEY1，问答服务不可用，请检查 aicodes/.env';
+            return;
+        }
+        if (!ttsReady) {
+            statusBox.className = 'status warn';
+            statusBox.textContent = '未配置 DASHSCOPE_API_KEY，语音不可用，仅返回文字回答';
+            return;
+        }
+        statusBox.className = 'status';
+        statusBox.textContent = '语音与问答服务已就绪';
+    }
+
+    function clearEmptyState() {
+        const empty = conversation.querySelector('.empty');
+        if (empty) {
+            empty.remove();
+        }
+    }
+
+    function appendBubble(role, text, extraClass) {
+        clearEmptyState();
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble ' + extraClass;
+        const roleTag = document.createElement('span');
+        roleTag.className = 'role';
+        roleTag.textContent = role;
+        bubble.appendChild(roleTag);
+        bubble.appendChild(document.createTextNode(text));
+        conversation.appendChild(bubble);
+        bubble.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+        return bubble;
+    }
+
+    function appendNotice(bubble, kind, text) {
+        const notice = document.createElement('div');
+        notice.className = 'notice ' + kind;
+        notice.textContent = text;
+        bubble.appendChild(notice);
+    }
+
+    function appendMeta(bubble, text) {
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = text;
+        bubble.appendChild(meta);
+    }
+
+    function appendPlayer(bubble, base64) {
+        const replay = document.createElement('button');
+        replay.type = 'button';
+        replay.className = 'replay';
+        replay.textContent = '播放这段语音';
+        replay.addEventListener('click', function () {
+            playAudio(base64);
+        });
+        bubble.appendChild(replay);
+    }
+
+    function playAudio(base64) {
+        player.src = 'data:audio/mp3;base64,' + base64;
+        playerHint.textContent = '正在播放语音';
+        const playPromise = player.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(function () {
+                playerHint.textContent = '浏览器阻止了自动播放，请点击上方播放按钮收听。';
+            });
+        }
+    }
+
+    function setLoading(loading) {
+        submitBtn.disabled = loading;
+        submitBtn.classList.toggle('loading', loading);
+        submitLabel.textContent = loading ? '正在生成回答与语音…' : '生成回答并朗读';
+    }
+
+    async function submitQuestion() {
+        const question = questionBox.value.trim();
+        if (!question) {
+            questionBox.focus();
+            return;
+        }
+
+        appendBubble('你', question, 'ask');
+        setLoading(true);
+
+        try {
+            const response = await fetch('/ask_voice', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question: question})
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                const failed = appendBubble('系统', data.error || ('请求失败，状态码 ' + response.status), 'answer');
+                appendNotice(failed, 'error', '请检查后端日志后重试。');
+                return;
+            }
+
+            const answer = appendBubble('CardioAI 顾问', data.text_answer || '', 'answer');
+
+            if (data.audio_base64) {
+                playAudio(data.audio_base64);
+                appendPlayer(answer, data.audio_base64);
+            } else {
+                appendNotice(answer, 'warn', data.tts_error || '语音不可用，仅返回文字回答。');
+            }
+
+            if (data.elapsed_ms) {
+                appendMeta(
+                    answer,
+                    '耗时：大模型 ' + data.elapsed_ms.llm + ' ms，语音 ' + data.elapsed_ms.tts + ' ms' +
+                    (data.tts_chunks ? '（' + data.tts_chunks + ' 段合成）' : '')
+                );
+            }
+        } catch (error) {
+            const failed = appendBubble('系统', '网络请求失败：' + error.message, 'answer');
+            appendNotice(failed, 'error', '请确认 Flask 服务仍在 5001 端口运行。');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    chips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            questionBox.value = chip.textContent.trim();
+            questionBox.focus();
+        });
+    });
+
+    submitBtn.addEventListener('click', submitQuestion);
+
+    questionBox.addEventListener('keydown', function (event) {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+            submitQuestion();
+        }
+    });
+
+    renderStatus();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CardioAI · 心血管风险预测</title>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --ink: #1f2933;
+      --muted: #6b7a8d;
+      --line: #e3e8ee;
+      --accent: #d64550;
+      --accent-soft: #fdecee;
+      --safe: #2f8f5b;
+      --safe-soft: #e8f5ee;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 32px 16px 64px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      line-height: 1.6;
+    }
+
+    .shell { max-width: 960px; margin: 0 auto; }
+
+    header.page-head { margin-bottom: 24px; }
+    header.page-head h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: .5px; }
+    header.page-head p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .banner {
+      margin-bottom: 20px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #fff7e6;
+      border: 1px solid #f0d9a8;
+      color: #8a6116;
+      font-size: 13px;
+    }
+
+    form.card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 24px 24px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    }
+
+    fieldset {
+      border: none;
+      border-top: 1px solid var(--line);
+      margin: 0;
+      padding: 18px 0 6px;
+    }
+    fieldset:first-of-type { border-top: none; }
+
+    legend {
+      padding: 0 8px 0 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: .4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px 20px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 13px; color: var(--muted); }
+
+    input, select {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfd;
+      font-size: 14px;
+      color: var(--ink);
+      font-family: inherit;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: #fff;
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .actions { display: flex; gap: 12px; align-items: center; margin-top: 22px; }
+
+    button {
+      padding: 10px 22px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity .15s ease;
+    }
+    button:hover { opacity: .88; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .hint { font-size: 12px; color: var(--muted); }
+
+    #result {
+      margin-top: 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+      display: none;
+    }
+    #result.visible { display: block; }
+
+    .result-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .result-head .value { font-size: 40px; font-weight: 700; line-height: 1; }
+    .result-head .badge {
+      padding: 3px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .badge.high { background: var(--accent-soft); color: var(--accent); }
+    .badge.low { background: var(--safe-soft); color: var(--safe); }
+
+    .bar {
+      position: relative;
+      height: 10px;
+      margin: 16px 0 10px;
+      background: var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .bar > span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      transition: width .4s ease;
+    }
+
+    .footnote { font-size: 12px; color: var(--muted); }
+
+    #error {
+      margin-top: 16px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      border: 1px solid #f3c9ce;
+      color: #8f2b35;
+      font-size: 13px;
+      display: none;
+    }
+    #error.visible { display: block; }
+
+    details { margin-top: 14px; font-size: 12px; color: var(--muted); }
+    pre {
+      margin: 8px 0 0;
+      padding: 10px;
+      background: #0f172a;
+      color: #d7e2ee;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+
+    footer.disclaimer {
+      margin: 26px auto 0;
+      max-width: 960px;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="page-head">
+      <h1>CardioAI · 心血管风险预测</h1>
+      <p>输入 11 项检查指标，模型给出心血管疾病风险概率。</p>
+    </header>
+
+    {% if not model_ready %}
+    <div class="banner">模型文件尚未生成，提交会失败。请先运行 <code>python module2_predictor/train_and_save.py</code>。</div>
+    {% endif %}
+
+    <form class="card" id="predict-form" novalidate>
+      <fieldset>
+        <legend>基本信息</legend>
+        <div class="grid">
+          <div class="field">
+            <label for="age_years">年龄（岁）</label>
+            <input id="age_years" name="age_years" type="number" min="1" max="120" step="1" value="52" required />
+          </div>
+          <div class="field">
+            <label for="gender">性别</label>
+            <select id="gender" name="gender">
+              <option value="1">女性</option>
+              <option value="2" selected>男性</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>体格</legend>
+        <div class="grid">
+          <div class="field">
+            <label for="height">身高（cm）</label>
+            <input id="height" name="height" type="number" min="100" max="250" step="1" value="170" required />
+          </div>
+          <div class="field">
+            <label for="weight">体重（kg）</label>
+            <input id="weight" name="weight" type="number" min="30" max="300" step="0.1" value="72" required />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>血压</legend>
+        <div class="grid">
+          <div class="field">
+            <label for="ap_hi">收缩压（mmHg）</label>
+            <input id="ap_hi" name="ap_hi" type="number" min="90" max="250" step="1" value="125" required />
+          </div>
+          <div class="field">
+            <label for="ap_lo">舒张压（mmHg）</label>
+            <input id="ap_lo" name="ap_lo" type="number" min="60" max="150" step="1" value="82" required />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>代谢与生活方式</legend>
+        <div class="grid">
+          <div class="field">
+            <label for="cholesterol">胆固醇水平</label>
+            <select id="cholesterol" name="cholesterol">
+              <option value="1" selected>正常</option>
+              <option value="2">偏高</option>
+              <option value="3">高</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="gluc">血糖水平</label>
+            <select id="gluc" name="gluc">
+              <option value="1" selected>正常</option>
+              <option value="2">偏高</option>
+              <option value="3">高</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="smoke">是否吸烟</label>
+            <select id="smoke" name="smoke">
+              <option value="0" selected>否</option>
+              <option value="1">是</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="alco">是否饮酒</label>
+            <select id="alco" name="alco">
+              <option value="0" selected>否</option>
+              <option value="1">是</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="active">是否有规律运动</label>
+            <select id="active" name="active">
+              <option value="1" selected>是</option>
+              <option value="0">否</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" id="submit-btn">评估风险</button>
+        <span class="hint">决策阈值 0.5，结果四舍五入到 0.01%</span>
+      </div>
+    </form>
+
+    <div id="error" role="alert"></div>
+
+    <section id="result" aria-live="polite">
+      <div class="result-head">
+        <span class="value" id="probability-value">--</span>
+        <span class="badge" id="risk-badge">--</span>
+      </div>
+      <div class="bar"><span id="probability-bar"></span></div>
+      <p class="footnote" id="risk-note"></p>
+      <details>
+        <summary>接口返回原始数据</summary>
+        <pre id="raw-json">{}</pre>
+      </details>
+    </section>
+
+    <footer class="disclaimer">
+      本页面仅用于课程演示，模型基于公开临床数据训练，输出不构成任何医疗诊断或治疗建议。
+    </footer>
+  </div>
+
+  <script>
+    const form = document.getElementById("predict-form");
+    const submitBtn = document.getElementById("submit-btn");
+    const errorBox = document.getElementById("error");
+    const resultBox = document.getElementById("result");
+    const valueEl = document.getElementById("probability-value");
+    const badgeEl = document.getElementById("risk-badge");
+    const barEl = document.getElementById("probability-bar");
+    const noteEl = document.getElementById("risk-note");
+    const rawEl = document.getElementById("raw-json");
+
+    const FIELDS = [
+      "age_years", "gender", "height", "weight", "ap_hi", "ap_lo",
+      "cholesterol", "gluc", "smoke", "alco", "active"
+    ];
+
+    function collectPayload() {
+      return FIELDS.reduce((acc, name) => {
+        acc[name] = Number(document.getElementById(name).value);
+        return acc;
+      }, {});
+    }
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.classList.add("visible");
+      resultBox.classList.remove("visible");
+    }
+
+    function renderResult(data) {
+      const percent = (data.probability * 100).toFixed(2);
+      const highRisk = data.prediction === 1;
+
+      valueEl.textContent = percent + "%";
+      valueEl.style.color = highRisk ? "var(--accent)" : "var(--safe)";
+      badgeEl.textContent = data.risk_level + "（" + (highRisk ? "患病预测为 1" : "患病预测为 0") + "）";
+      badgeEl.className = "badge " + (highRisk ? "high" : "low");
+      barEl.style.width = Math.min(100, data.probability * 100) + "%";
+      barEl.style.background = highRisk ? "var(--accent)" : "var(--safe)";
+      noteEl.textContent = highRisk
+        ? "模型判断该组合特征的心血管疾病概率高于决策阈值，建议关注血压、血脂与体重管理。"
+        : "模型判断该组合特征的心血管疾病概率低于决策阈值，仍建议定期体检。";
+      rawEl.textContent = JSON.stringify(data, null, 2);
+      resultBox.classList.add("visible");
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.classList.remove("visible");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "计算中…";
+
+      try {
+        const response = await fetch("/predict_cardio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(collectPayload()),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          showError(data.error || "请求失败（HTTP " + response.status + "）");
+          return;
+        }
+        renderResult(data);
+      } catch (err) {
+        showError("无法连接预测服务：" + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "评估风险";
+      }
+    });
+  </script>
+</body>
+</html>
